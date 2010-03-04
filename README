@@ -1,0 +1,12 @@
+geany-modeline
+
+I like to write different languages with different tab width settings.
+Modelines are incredibly handy for accomplishing this, as well as
+accomplishing other formatting tasks.  Currently, I have only implemented
+support for the following, also found in VIM:
+
+  expandtab (et) - Makes tab produce spaces
+  noexpandtab    - Tab produces \t
+  tabstop (ts)   - Basically the tab size
+  wrap           - Not working
+  nowrap         - Not working
