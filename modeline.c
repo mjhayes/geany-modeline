@@ -101,14 +101,16 @@ static void opt_expand_tab(GeanyDocument *doc, void *arg)
  */
 static void opt_tab_stop(GeanyDocument *doc, void *arg)
 {
+        const GeanyIndentPrefs *prefs;
         gint *iarg;
 
         iarg = arg;
+        prefs = editor_get_indent_prefs(doc->editor);
 
         debugf("opt_tab_stop: %d\n", *iarg);
 
-        scintilla_send_message(doc->editor->sci, SCI_SETINDENT, *iarg, 0);
-        scintilla_send_message(doc->editor->sci, SCI_SETTABWIDTH, *iarg, 0);
+        doc->editor->indent_width = *iarg;
+        editor_set_indent_type(doc->editor, prefs->type);
 }
 
 /**
@@ -125,6 +127,7 @@ static void opt_wrap(GeanyDocument *doc, void *arg)
 
         debugf("opt_wrap: %d\n", *iarg);
 
+        doc->editor->line_wrapping = *iarg;
         scintilla_send_message(doc->editor->sci, SCI_SETWRAPMODE,
                                (*iarg) ? SC_WRAP_WORD : SC_WRAP_NONE, 0);
 }

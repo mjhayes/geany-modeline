@@ -8,5 +8,5 @@ support for the following, also found in VIM:
   expandtab (et) - Makes tab produce spaces
   noexpandtab    - Tab produces \t
   tabstop (ts)   - Basically the tab size
-  wrap           - Not working
-  nowrap         - Not working
+  wrap           - Wrap lines
+  nowrap         - Don't wrap lines
