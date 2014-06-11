@@ -159,7 +159,7 @@ static void scan_document(GeanyDocument *doc)
                 return;
 
         lines = sci_get_line_count(doc->editor->sci);
-        for (line = 0; line < lines; line++) {
+        for (line = 0; line < MIN(lines, 50); line++) {
                 buf = g_strstrip(sci_get_line(doc->editor->sci, line));
 
                 for (i = 0; mode_pre[i] != NULL; i++) {
