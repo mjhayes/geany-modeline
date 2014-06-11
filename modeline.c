@@ -30,8 +30,8 @@ static void opt_wrap(GeanyDocument *doc, void *arg);
 
 /**< Hook into geany */
 PluginCallback plugin_callbacks[] = {
-        { "document-open", G_CALLBACK(on_document_open), FALSE, NULL },
-        { "document-save", G_CALLBACK(on_document_save), FALSE, NULL },
+        { "document-open", G_CALLBACK(on_document_open), TRUE, NULL },
+        { "document-save", G_CALLBACK(on_document_save), TRUE, NULL },
         { NULL, NULL, FALSE, NULL }
 };
 
