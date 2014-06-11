@@ -23,11 +23,8 @@ static void opt_tab_stop(GeanyDocument *doc, void *arg);
 static void opt_wrap(GeanyDocument *doc, void *arg);
 static void opt_enc(GeanyDocument *doc, void *arg);
 
-#ifdef DEBUG_MODE
-#define debugf(fmt, ...) printf(fmt, ## __VA_ARGS__), fflush(stdout)
-#else
-#define debugf(fmt, ...)
-#endif
+#define debugf(fmt, ...) \
+        do { if (geany_data->app->debug_mode) printf(fmt, ## __VA_ARGS__); } while (0)
 
 /**< Hook into geany */
 PluginCallback plugin_callbacks[] = {
@@ -270,7 +267,6 @@ static void interpret_option(GeanyDocument *doc, gchar *opt)
  */
 static void on_document_open(GObject *obj, GeanyDocument *doc, gpointer user_data)
 {
-        debugf("on_document_open\n");
         scan_document(doc);
         document_reload_file(doc, NULL);
 }
@@ -284,7 +280,6 @@ static void on_document_open(GObject *obj, GeanyDocument *doc, gpointer user_dat
  */
 static void on_document_save(GObject *obj, GeanyDocument *doc, gpointer user_data)
 {
-        debugf("on_document_save\n");
         scan_document(doc);
 }
 
