@@ -1,4 +1,4 @@
-PREFIX  = /usr
+PREFIX ?= $(shell pkg-config --variable=prefix geany)
 CC      = gcc
 CFLAGS  = -g -O2 -Wall -fPIC
 LDFLAGS = -shared
