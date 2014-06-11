@@ -21,6 +21,7 @@ static void on_document_save(GObject *obj, GeanyDocument *doc, gpointer user_dat
 static void opt_expand_tab(GeanyDocument *doc, void *arg);
 static void opt_tab_stop(GeanyDocument *doc, void *arg);
 static void opt_wrap(GeanyDocument *doc, void *arg);
+static void opt_enc(GeanyDocument *doc, void *arg);
 
 #ifdef DEBUG_MODE
 #define debugf(fmt, ...) printf(fmt, ## __VA_ARGS__), fflush(stdout)
@@ -62,6 +63,7 @@ static struct mode_opt opts[] = {
         { "tabstop",     "ts", MODE_OPT_ARG_INT,   &opt_tab_stop },
         { "wrap",        NULL, MODE_OPT_ARG_TRUE,  &opt_wrap },
         { "nowrap",      NULL, MODE_OPT_ARG_FALSE, &opt_wrap },
+        { "fileencoding",NULL, MODE_OPT_ARG_STR,   &opt_enc },
         { NULL,          NULL, -1,                 NULL }
 };
 
@@ -130,6 +132,20 @@ static void opt_wrap(GeanyDocument *doc, void *arg)
         doc->editor->line_wrapping = *iarg;
         scintilla_send_message(doc->editor->sci, SCI_SETWRAPMODE,
                                (*iarg) ? SC_WRAP_WORD : SC_WRAP_NONE, 0);
+}
+
+/* XXX */
+extern GeanyEncodingIndex encodings_get_idx_from_charset(const gchar *charset);
+static void opt_enc(GeanyDocument *doc, void *arg)
+{
+        const gchar *str = arg;
+        GeanyEncodingIndex idx;
+
+        /* NOTE: encodings_get_idx_from_charset() defaults to UTF-8 when parsing fails */
+        idx = encodings_get_idx_from_charset(str);
+        debugf("opt_enc: \"%s\". Setting \"%s\"\n", str, encodings_get_charset_from_index(idx));
+
+        document_set_encoding(doc, encodings_get_charset_from_index(idx));
 }
 
 /**
@@ -256,6 +272,7 @@ static void on_document_open(GObject *obj, GeanyDocument *doc, gpointer user_dat
 {
         debugf("on_document_open\n");
         scan_document(doc);
+        document_reload_file(doc, NULL);
 }
 
 /**
