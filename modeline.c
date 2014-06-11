@@ -172,7 +172,7 @@ static void parse_options(GeanyDocument *doc, gchar *buf)
 
         debugf("modeline [%s]\n", buf);
 
-        tok = g_strsplit(buf, ":", 0);
+        tok = g_strsplit_set(buf, ": ", 0);
         for (i = 1; tok[i]; i++) {
                 str = g_strstrip(tok[i]);
 
