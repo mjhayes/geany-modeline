@@ -58,6 +58,8 @@ static struct mode_opt opts[] = {
         { "expandtab",   "et", MODE_OPT_ARG_TRUE,  &opt_expand_tab },
         { "noexpandtab", NULL, MODE_OPT_ARG_FALSE, &opt_expand_tab },
         { "tabstop",     "ts", MODE_OPT_ARG_INT,   &opt_tab_stop },
+        { "softtabstop", "sts",MODE_OPT_ARG_INT,   &opt_tab_stop },
+        { "shiftwidth",  "sw", MODE_OPT_ARG_INT,   &opt_tab_stop },
         { "wrap",        NULL, MODE_OPT_ARG_TRUE,  &opt_wrap },
         { "nowrap",      NULL, MODE_OPT_ARG_FALSE, &opt_wrap },
         { "fileencoding",NULL, MODE_OPT_ARG_STR,   &opt_enc },
