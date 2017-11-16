@@ -1,23 +1,30 @@
+
 PREFIX  = /usr
 CC      = gcc
-CFLAGS  = -g -O2 -Wall -fPIC
-LDFLAGS = -shared
-LIBS    = $(shell pkg-config --libs geany)
-INCLUDE = $(shell pkg-config --cflags geany)
+LIBTOOL	= libtool
+PKG_CONFIG ?= pkg-config
+#PKG_CONFIG ?= PKG_CONFIG_PATH=$(HOME)/lib/pkgconfig pkg-config
 
-PROG    = modeline.so
-OBJS    = modeline.o
+CFLAGS  = -g -O2 -Wall -fPIC
+LDFLAGS = -rpath $(HOME)/lib
+
+
+LIBS    = $(shell $(PKG_CONFIG) --libs geany)
+INCLUDE = $(shell $(PKG_CONFIG) --cflags geany)
+
+PROG    = libmodeline.la
+OBJS    = modeline.lo
 HEADERS =
 
-all: modeline.so
+all: $(PROG)
 
 $(PROG): $(OBJS)
 	echo "LD $@"
-	$(CC) $(OBJS) $(LIBS) $(LDFLAGS) -o $@
+	$(LIBTOOL) --mode=link $(CC) $(LDFLAGS) $(OBJS) $(LIBS) -o $@
 
-$(OBJS): %.o: %.c $(HEADERS)
+$(OBJS): %.lo: %.c $(HEADERS)
 	echo "CC $<"
-	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@
+	$(LIBTOOL) --mode=compile $(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@
 
 install: all
 	echo "INSTALL $(DESTDIR)$(PREFIX)/lib/geany/$(PROG)"
@@ -25,6 +32,6 @@ install: all
 	install -s $(PROG) $(DESTDIR)$(PREFIX)/lib/geany
 
 clean:
-	rm -f $(OBJS) $(PROG)
+	rm -fr $(OBJS) $(PROG) .libs
 
 .SILENT:

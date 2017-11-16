@@ -74,6 +74,11 @@ static const gchar *mode_pre[] = {
         NULL
 };
 
+/**< Will only look the top lines, and bottom lines */
+#ifndef CONFIG_MODELINE_NLINES
+#define CONFIG_MODELINE_NLINES  40
+#endif
+
 /**
  * @brief Whether or not to expand tabs to spaces
  *
@@ -146,7 +151,7 @@ static void scan_document(GeanyDocument *doc)
                 return;
 
         lines = sci_get_line_count(doc->editor->sci);
-        for (line = 0; line < lines; line++) {
+        for (line = 0; line < lines && line < CONFIG_MODELINE_NLINES; line++) {
                 buf = g_strstrip(sci_get_line(doc->editor->sci, line));
 
                 for (i = 0; mode_pre[i] != NULL; i++) {
@@ -156,6 +161,21 @@ static void scan_document(GeanyDocument *doc)
                         }
                 }
         }
+        if (lines < CONFIG_MODELINE_NLINES)
+                return;
+        /* Now look from the bottom */
+        for (line = lines - 1; line >= lines - CONFIG_MODELINE_NLINES &&
+                        line >= CONFIG_MODELINE_NLINES; line--) {
+                buf = g_strstrip(sci_get_line(doc->editor->sci, line));
+
+                for (i = 0; mode_pre[i] != NULL; i++) {
+                        if ((ptr = g_strstr_len(buf, -1, mode_pre[i]))) {
+                                parse_options(doc, buf);
+                                return;
+                        }
+                }
+        }
+
 }
 
 /**
