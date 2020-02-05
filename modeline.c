@@ -1,27 +1,17 @@
-// vim: expandtab:ts=8
+#include <geanyplugin.h>
+#include <geany.h>
 
-#include "geanyplugin.h"
+GeanyPlugin      *geany_plugin;
+GeanyData        *geany_data;
 
-#define DEBUG_MODE 1
+PLUGIN_VERSION_CHECK(224)
 
-GeanyPlugin *geany_plugin;
-GeanyData *geany_data;
-GeanyFunctions *geany_functions;
-
-PLUGIN_VERSION_CHECK(150);
-PLUGIN_SET_INFO("Modeline", "Detect modelines for code formatting", "1.0",
-                "Matt Hayes <nobomb@gmail.com>");
-
-static void scan_document(GeanyDocument *doc);
-static void parse_options(GeanyDocument *doc, gchar *buf);
-static void interpret_option(GeanyDocument *doc, gchar *opt);
-static void on_document_open(GObject *obj, GeanyDocument *doc, gpointer user_data);
-static void on_document_save(GObject *obj, GeanyDocument *doc, gpointer user_data);
-
-static void opt_expand_tab(GeanyDocument *doc, void *arg);
-static void opt_tab_stop(GeanyDocument *doc, void *arg);
-static void opt_wrap(GeanyDocument *doc, void *arg);
-static void opt_enc(GeanyDocument *doc, void *arg);
+PLUGIN_SET_INFO (
+	_("Modeline"),
+	_("VIM Modeline parser (minimal)**"),
+	"1.1",
+	"Shaun Tancheff <shaun.tancheff@hpe.com>, Matt Hayes <nobomb@gmail.com>"
+)
 
 #ifdef DEBUG_MODE
 #define debugf(fmt, ...) printf(fmt, ## __VA_ARGS__), fflush(stdout)
@@ -29,53 +19,24 @@ static void opt_enc(GeanyDocument *doc, void *arg);
 #define debugf(fmt, ...)
 #endif
 
-/**< Hook into geany */
-PluginCallback plugin_callbacks[] = {
-        { "document-open", G_CALLBACK(on_document_open), TRUE, NULL },
-        { "document-save", G_CALLBACK(on_document_save), TRUE, NULL },
-        { NULL, NULL, FALSE, NULL }
-};
-
 /**
  * @brief Mode option types
  */
 enum mode_opt_arg {
-        MODE_OPT_ARG_INT, /**< Argument is an integer */
-        MODE_OPT_ARG_TRUE, /**< No argument, true */
-        MODE_OPT_ARG_FALSE, /**< No argument, false */
-        MODE_OPT_ARG_STR, /**< String argument */
+	MODE_OPT_ARG_INT,	/**< Argument is an integer */
+	MODE_OPT_ARG_TRUE,	/**< No argument, true */
+	MODE_OPT_ARG_FALSE,	/**< No argument, false */
+	MODE_OPT_ARG_STR,	/**< String argument */
 };
 
 /**
  * @brief Mode option structure
  */
 struct mode_opt {
-        const gchar *name; /**< Full name of option */
-        const gchar *alias; /**< Short alias of option */
-        enum mode_opt_arg arg_type; /**< Argument type for option */
-        void (*cb)(GeanyDocument *, void *); /**< */
-};
-
-/**< Define mode options, what type of argument it takes, and the callback */
-static struct mode_opt opts[] = {
-        { "expandtab",   "et", MODE_OPT_ARG_TRUE,  &opt_expand_tab },
-        { "noexpandtab", NULL, MODE_OPT_ARG_FALSE, &opt_expand_tab },
-        { "tabstop",     "ts", MODE_OPT_ARG_INT,   &opt_tab_stop },
-        { "softtabstop", "sts",MODE_OPT_ARG_INT,   &opt_tab_stop },
-        { "shiftwidth",  "sw", MODE_OPT_ARG_INT,   &opt_tab_stop },
-        { "wrap",        NULL, MODE_OPT_ARG_TRUE,  &opt_wrap },
-        { "nowrap",      NULL, MODE_OPT_ARG_FALSE, &opt_wrap },
-        { "fileencoding",NULL, MODE_OPT_ARG_STR,   &opt_enc },
-        { NULL,          NULL, -1,                 NULL }
-};
-
-/**< These are prefixes we search for to determine what is a modeline */
-static const gchar *mode_pre[] = {
-        " geany:",
-        " vi:",
-        " vim:",
-        " ex:",
-        NULL
+	const gchar *name; /**< Full name of option */
+	const gchar *alias; /**< Short alias of option */
+	enum mode_opt_arg arg_type; /**< Argument type for option */
+	void (*cb)(GeanyDocument *, void *); /**< */
 };
 
 /**
@@ -136,90 +97,27 @@ static void opt_wrap(GeanyDocument *doc, void *arg)
                                (*iarg) ? SC_WRAP_WORD : SC_WRAP_NONE, 0);
 }
 
-/* XXX */
-extern GeanyEncodingIndex encodings_get_idx_from_charset(const gchar *charset);
-static void opt_enc(GeanyDocument *doc, void *arg)
-{
-        const gchar *str = arg;
-        GeanyEncodingIndex idx;
+/**< Define mode options, what type of argument it takes, and the callback */
+static struct mode_opt opts[] = {
+        { "expandtab",   "et", MODE_OPT_ARG_TRUE,  &opt_expand_tab },
+        { "noexpandtab", NULL, MODE_OPT_ARG_FALSE, &opt_expand_tab },
+        { "tabstop",     "ts", MODE_OPT_ARG_INT,   &opt_tab_stop },
+        { "softtabstop", "sts",MODE_OPT_ARG_INT,   &opt_tab_stop },
+        { "shiftwidth",  "sw", MODE_OPT_ARG_INT,   &opt_tab_stop },
+        { "wrap",        NULL, MODE_OPT_ARG_TRUE,  &opt_wrap },
+        { "nowrap",      NULL, MODE_OPT_ARG_FALSE, &opt_wrap },
+//        { "fileencoding",NULL, MODE_OPT_ARG_STR,   &opt_enc },
+        { NULL,          NULL, -1,                 NULL }
+};
 
-        /* NOTE: encodings_get_idx_from_charset() defaults to UTF-8 when parsing fails */
-        idx = encodings_get_idx_from_charset(str);
-        debugf("opt_enc: \"%s\". Setting \"%s\"\n", str, encodings_get_charset_from_index(idx));
-
-        document_set_encoding(doc, encodings_get_charset_from_index(idx));
-}
-
-/**
- * @brief Scan a document, line by line, looking for modelines.
- *
- * @param doc Document
- */
-static void scan_document(GeanyDocument *doc)
-{
-	guint lines, line, i;
-	guint sskip, eskip;
-        gchar *buf, *ptr;
-
-        if (!doc->is_valid)
-                return;
-
-        lines = sci_get_line_count(doc->editor->sci);
-	sskip = eskip = lines;
-	if (lines > 50) {
-		sskip = 51;
-		eskip = lines - 50;
-		if (eskip < sskip)
-			eskip = lines;
-	}
-        for (line = 0; line < MIN(lines, 50); line++) {
-		if (line > sskip && line < eskip)
-			continue;
-                buf = g_strstrip(sci_get_line(doc->editor->sci, line));
-
-                for (i = 0; mode_pre[i] != NULL; i++) {
-                        if ((ptr = g_strstr_len(buf, -1, mode_pre[i]))) {
-                                parse_options(doc, buf);
-                                return;
-                        }
-                }
-        }
-}
-
-/**
- * @brief Parse out each key/value pair from a modeline, then send the pair out
- *        to the option interpreter.
- *
- * @param doc Document
- * @param buf Modeline
- */
-static void parse_options(GeanyDocument *doc, gchar *buf)
-{
-        gchar **tok, **sp, *str;
-        guint i, j;
-
-        debugf("modeline [%s]\n", buf);
-
-        tok = g_strsplit_set(buf, ": ", 0);
-        for (i = 1; tok[i]; i++) {
-                str = g_strstrip(tok[i]);
-
-                // Not a 'set' list, throw the option to the option interpreter
-                if (g_ascii_strncasecmp(str, "set", 3)) {
-                        interpret_option(doc, str);
-                        continue;
-                }
-
-                // This is a 'set' list, split by spaces!
-                sp = g_strsplit(str, " ", 0);
-                for (j = 1; sp[j]; j++) {
-                        str = g_strstrip(sp[j]);
-                        interpret_option(doc, str);
-                }
-                g_strfreev(sp);
-        }
-        g_strfreev(tok);
-}
+/**< These are prefixes we search for to determine what is a modeline */
+static const gchar *mode_pre[] = {
+        " geany:",
+        " vi:",
+        " vim:",
+        " ex:",
+        NULL
+};
 
 /**
  * @brief Interpret an option and set it.
@@ -274,6 +172,77 @@ static void interpret_option(GeanyDocument *doc, gchar *opt)
 }
 
 /**
+ * @brief Parse out each key/value pair from a modeline, then send the pair out
+ *        to the option interpreter.
+ *
+ * @param doc Document
+ * @param buf Modeline
+ */
+static void parse_options(GeanyDocument *doc, gchar *buf)
+{
+        gchar **tok, **sp, *str;
+        guint i, j;
+
+        debugf("modeline [%s]\n", buf);
+
+        tok = g_strsplit_set(buf, ": ", 0);
+        for (i = 1; tok[i]; i++) {
+                str = g_strstrip(tok[i]);
+
+                // Not a 'set' list, throw the option to the option interpreter
+                if (g_ascii_strncasecmp(str, "set", 3)) {
+                        interpret_option(doc, str);
+                        continue;
+                }
+
+                // This is a 'set' list, split by spaces!
+                sp = g_strsplit(str, " ", 0);
+                for (j = 1; sp[j]; j++) {
+                        str = g_strstrip(sp[j]);
+                        interpret_option(doc, str);
+                }
+                g_strfreev(sp);
+        }
+        g_strfreev(tok);
+}
+
+/**
+ * @brief Scan a document, line by line, looking for modelines.
+ *
+ * @param doc Document
+ */
+static void scan_document(GeanyDocument *doc)
+{
+	guint lines, line, i;
+	guint sskip, eskip;
+        gchar *buf, *ptr;
+
+        if (!doc->is_valid)
+                return;
+
+        lines = sci_get_line_count(doc->editor->sci);
+	sskip = eskip = lines;
+	if (lines > 50) {
+		sskip = 51;
+		eskip = lines - 50;
+		if (eskip < sskip)
+			eskip = lines;
+	}
+        for (line = 0; line < MIN(lines, 50); line++) {
+		if (line > sskip && line < eskip)
+			continue;
+                buf = g_strstrip(sci_get_line(doc->editor->sci, line));
+
+                for (i = 0; mode_pre[i] != NULL; i++) {
+                        if ((ptr = g_strstr_len(buf, -1, mode_pre[i]))) {
+                                parse_options(doc, buf);
+                                return;
+                        }
+                }
+        }
+}
+
+/**
  * @brief Document open hook
  *
  * @param obj
@@ -282,6 +251,7 @@ static void interpret_option(GeanyDocument *doc, gchar *opt)
  */
 static void on_document_open(GObject *obj, GeanyDocument *doc, gpointer user_data)
 {
+        debugf("on_document_open\n");
         scan_document(doc);
         document_reload_file(doc, NULL);
 }
@@ -295,21 +265,28 @@ static void on_document_open(GObject *obj, GeanyDocument *doc, gpointer user_dat
  */
 static void on_document_save(GObject *obj, GeanyDocument *doc, gpointer user_data)
 {
+        debugf("on_document_save\n");
         scan_document(doc);
 }
 
-/**
- * @brief Plugin initialization
- *
- * @param
- */
-void plugin_init(GeanyData *data)
+/**< Hook into geany */
+PluginCallback plugin_callbacks[] = {
+        { "document-open", G_CALLBACK(on_document_open), FALSE, NULL },
+        { "document-save", G_CALLBACK(on_document_save), FALSE, NULL },
+        { NULL, NULL, FALSE, NULL }
+};
+
+
+/* --- plugin initialization and cleanup --- */
+ 
+void plugin_init (GeanyData *data)
+{
+	if (main_is_realized())
+		debugf("main_is_realized ...\n");
+}
+
+void plugin_cleanup (void)
 {
 }
 
-/**
- * @brief Plugin cleanup
- */
-void plugin_cleanup(void)
-{
-}
+/* vim: noexpandtab:ts=8 */
