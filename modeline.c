@@ -23,8 +23,11 @@ static void opt_tab_stop(GeanyDocument *doc, void *arg);
 static void opt_wrap(GeanyDocument *doc, void *arg);
 static void opt_enc(GeanyDocument *doc, void *arg);
 
-#define debugf(fmt, ...) \
-        do { if (geany_data->app->debug_mode) printf(fmt, ## __VA_ARGS__); } while (0)
+#ifdef DEBUG_MODE
+#define debugf(fmt, ...) printf(fmt, ## __VA_ARGS__), fflush(stdout)
+#else
+#define debugf(fmt, ...)
+#endif
 
 /**< Hook into geany */
 PluginCallback plugin_callbacks[] = {
@@ -154,14 +157,24 @@ static void opt_enc(GeanyDocument *doc, void *arg)
  */
 static void scan_document(GeanyDocument *doc)
 {
-        guint lines, line, i;
+	guint lines, line, i;
+	guint sskip, eskip;
         gchar *buf, *ptr;
 
         if (!doc->is_valid)
                 return;
 
         lines = sci_get_line_count(doc->editor->sci);
+	sskip = eskip = lines;
+	if (lines > 50) {
+		sskip = 51;
+		eskip = lines - 50;
+		if (eskip < sskip)
+			eskip = lines;
+	}
         for (line = 0; line < MIN(lines, 50); line++) {
+		if (line > sskip && line < eskip)
+			continue;
                 buf = g_strstrip(sci_get_line(doc->editor->sci, line));
 
                 for (i = 0; mode_pre[i] != NULL; i++) {

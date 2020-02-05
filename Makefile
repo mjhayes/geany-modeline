@@ -4,6 +4,7 @@ CFLAGS  = -g -O2 -Wall -fPIC
 LDFLAGS = -shared
 LIBS    = $(shell pkg-config --libs geany)
 INCLUDE = $(shell pkg-config --cflags geany)
+PLUGDIR = $(shell echo geany)
 
 PROG    = modeline.so
 OBJS    = modeline.o
@@ -20,9 +21,8 @@ $(OBJS): %.o: %.c $(HEADERS)
 	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@
 
 install: all
-	echo "INSTALL $(DESTDIR)$(PREFIX)/lib/geany/$(PROG)"
-	mkdir -p $(DESTDIR)$(PREFIX)/lib/geany
-	install -s $(PROG) $(DESTDIR)$(PREFIX)/lib/geany
+	echo "INSTALL $(DESTDIR)$(PREFIX)/lib/$(PLUGDIR)/$(PROG)"
+	install -s $(PROG) $(DESTDIR)$(PREFIX)/lib/$(PLUGDIR)
 
 clean:
 	rm -f $(OBJS) $(PROG)
