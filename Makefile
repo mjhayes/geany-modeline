@@ -27,7 +27,7 @@ install: all
 	install -s $(PROG) $(DESTDIR)$(PREFIX)/lib64/$(PLUGDIR)
 
 userinstall: all
-	echo "INSTALL ${HOME}/.config/geany/plugins
+	echo "INSTALL ${HOME}/.config/geany/plugins"
 	install -s $(PROG) ${HOME}/.config/geany/plugins
 
 clean:
