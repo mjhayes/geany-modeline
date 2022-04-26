@@ -1,3 +1,5 @@
+# vim: noexpandtab:ts=8
+
 PREFIX ?= $(shell pkg-config --variable=prefix geany)
 CC      = gcc
 CFLAGS  = -g -O2 -Wall -fPIC
@@ -21,8 +23,12 @@ $(OBJS): %.o: %.c $(HEADERS)
 	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@
 
 install: all
-	echo "INSTALL $(DESTDIR)$(PREFIX)/lib/$(PLUGDIR)/$(PROG)"
-	install -s $(PROG) $(DESTDIR)$(PREFIX)/lib/$(PLUGDIR)
+	echo "INSTALL $(DESTDIR)$(PREFIX)/lib64/$(PLUGDIR)/$(PROG)"
+	install -s $(PROG) $(DESTDIR)$(PREFIX)/lib64/$(PLUGDIR)
+
+userinstall: all
+	echo "INSTALL ${HOME}/.config/geany/plugins
+	install -s $(PROG) ${HOME}/.config/geany/plugins
 
 clean:
 	rm -f $(OBJS) $(PROG)
